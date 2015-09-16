@@ -3,6 +3,8 @@ package com.vbs.parser.workhorse;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.log4j.spi.TriggeringEventEvaluator;
+
 import com.vbs.parser.domain.Constants;
 import com.vbs.parser.domain.DataType;
 import com.vbs.parser.domain.ElseIfStatement;
@@ -56,13 +58,23 @@ public class StatementFactory {
 	
 	public static VariableInit buildVariableInitStatements(int index, String lineTrimmed) {
 		
-		Pattern pattern = Pattern.compile("Dim(.+?)As", Pattern.CASE_INSENSITIVE);
-		Matcher matcher = pattern.matcher(lineTrimmed);
-		matcher.find();
-		
 		VariableInit vinit = new VariableInit();
 		vinit.setText(lineTrimmed);
 		vinit.setLineNumber(index);
+		
+		Pattern pattern;
+		Matcher matcher = null;
+		if(lineTrimmed.contains("As")){
+			
+			pattern = Pattern.compile("Dim(.+?)As", Pattern.CASE_INSENSITIVE);
+			matcher = pattern.matcher(lineTrimmed);
+			
+		} else {
+			
+			pattern = Pattern.compile("Dim(.*)", Pattern.CASE_INSENSITIVE);
+			matcher = pattern.matcher(lineTrimmed);			
+		}
+		matcher.find();	
 		
 		String varstr = matcher.group(1);
 		String[] variableNames = varstr.split(",");
@@ -70,12 +82,17 @@ public class StatementFactory {
 		for(String var : variableNames){
 			vinit.getVariables().add(var.trim());
 		}
-		
+				
 		pattern = Pattern.compile("As(.+)", Pattern.CASE_INSENSITIVE);
 		matcher = pattern.matcher(lineTrimmed);
-		matcher.find();
-		String vartype = matcher.group(1);
-		vinit.setVariableType(DataType.fromString(vartype.trim()));
+		if(matcher.find()){
+			
+			String vartype = matcher.group(1);
+			vinit.setVariableType(DataType.fromString(vartype.trim()));
+		} else {
+			vinit.setVariableType(DataType.EMPTY);
+		}
+		
 		
 		return vinit;
 		

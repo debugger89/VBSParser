@@ -6,7 +6,8 @@ public enum DataType {
 	INT("Int"),
 	VAR("var"),
 	ByVal("ByVal"),
-	ByRef("ByRef");
+	ByRef("ByRef"),
+	EMPTY("");
 	
 	private final String name;       
 

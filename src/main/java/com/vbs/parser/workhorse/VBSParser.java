@@ -12,6 +12,7 @@ import org.apache.log4j.Logger;
 import com.vbs.parser.domain.Constants;
 import com.vbs.parser.domain.ElseIfStatement;
 import com.vbs.parser.domain.ElseStatement;
+import com.vbs.parser.domain.EmptyLineStatement;
 import com.vbs.parser.domain.FileContainer;
 import com.vbs.parser.domain.Function;
 import com.vbs.parser.domain.IfStatement;
@@ -33,6 +34,8 @@ public class VBSParser {
 	private List<IContainer> containerStack;
 	
 	private List<String> sourceLines; 
+	
+	private List<Statement> flatStructuredStatements;
 		
 	public VBSParser(File vbsFile) {
 
@@ -42,6 +45,7 @@ public class VBSParser {
 			logger.error(e);
 		}
 		this.vbsFile = vbsFile;
+		flatStructuredStatements = new ArrayList<Statement>();
 		fileContainer = new FileContainer(vbsFile.getName());
 		containerStack = new ArrayList<IContainer>();
 		containerStack.add(fileContainer);
@@ -71,6 +75,8 @@ public class VBSParser {
 			parent.getChildContainers().add(func);
 			containerStack.add(func);
 			
+			flatStructuredStatements.add(func);
+			
 		}  else if(lineTrimmed.toLowerCase().startsWith(Constants.DIM_IDENTIFIER)){
 			
 			VariableInit vinit = StatementFactory.buildVariableInitStatements(index, lineTrimmed);
@@ -78,6 +84,7 @@ public class VBSParser {
 			vinit.setParent(parent);
 			parent.getStatements().add(vinit);
 			
+			flatStructuredStatements.add(vinit);
 			
 		} else if(lineTrimmed.toLowerCase().startsWith(Constants.WHILE_IDENTIFIER) 
 				|| lineTrimmed.toLowerCase().startsWith(Constants.DO_WHILE_IDENTIFIER) 
@@ -90,6 +97,8 @@ public class VBSParser {
 			parent.getChildContainers().add(loop);
 			containerStack.add(loop);
 			
+			flatStructuredStatements.add(loop);
+			
 		} else if(lineTrimmed.toLowerCase().matches(Constants.END_LOOP_REGEX)) {
 			
 			VBStatement end = StatementFactory.buildGenericStatements(index, lineTrimmed);
@@ -100,6 +109,8 @@ public class VBSParser {
 			
 			popLastContainerFromStack();
 			
+			flatStructuredStatements.add(end);
+			
 		} else if(lineTrimmed.toLowerCase().startsWith(Constants.IF_IDENTIFIER)) {
 			
 			IfStatement ifstmt = StatementFactory.buildIFStatements(index, lineTrimmed);
@@ -108,6 +119,8 @@ public class VBSParser {
 			parent.getStatements().add(ifstmt);
 			parent.getChildContainers().add(ifstmt);
 			containerStack.add(ifstmt);
+			
+			flatStructuredStatements.add(ifstmt);
 			
 		} else if(lineTrimmed.toLowerCase().startsWith(Constants.ELSE_IF_IDENTIFIER)) {
 			
@@ -120,7 +133,7 @@ public class VBSParser {
 			parent.getChildContainers().add(elseifstmt);
 			containerStack.add(elseifstmt);
 			
-			
+			flatStructuredStatements.add(elseifstmt);
 			
 		} else if(lineTrimmed.toLowerCase().startsWith(Constants.ELSE_IDENTIFIER)) {
 			
@@ -133,6 +146,8 @@ public class VBSParser {
 			parent.getChildContainers().add(elsestmt);
 			containerStack.add(elsestmt);
 			
+			flatStructuredStatements.add(elsestmt);
+			
 		} else if(lineTrimmed.toLowerCase().startsWith(Constants.END_IF_REGEX)) {
 			
 			popLastContainerFromStack();
@@ -142,7 +157,7 @@ public class VBSParser {
 			end.setParentContainer(parent);
 			parent.getStatements().add(end);
 						
-			
+			flatStructuredStatements.add(end);
 			
 		} else if(lineTrimmed.toLowerCase().startsWith(Constants.END_FUNCTION_IDENTIFIER)){
 			
@@ -162,12 +177,27 @@ public class VBSParser {
 				popLastContainerFromStack();
 			}
 			
-		} else {
+			flatStructuredStatements.add(end);
+			
+		}  else if(lineTrimmed.isEmpty()){
+			
+			EmptyLineStatement emptystmt = new EmptyLineStatement();
+			emptystmt.setText("");
+			emptystmt.setLineNumber(index);
+			IContainer parent = getLastContainerFromStack();
+			emptystmt.setParent(parent);
+			parent.getStatements().add(emptystmt);
+			
+			flatStructuredStatements.add(emptystmt);
+			
+		}	else {
 			
 			VBStatement gstmt = StatementFactory.buildGenericStatements(index, lineTrimmed);
 			IContainer parent = getLastContainerFromStack();
 			gstmt.setParentContainer(parent);
 			parent.getStatements().add(gstmt);
+			
+			flatStructuredStatements.add(gstmt);
 			
 		}
 	}
@@ -211,6 +241,11 @@ public class VBSParser {
 		return parsedLines;
 	}
 	
+	public List<Statement> getParsedStatements(){
+		
+		return flatStructuredStatements;
+	}
+	
 	private List<String> visitContainersAndExtractRecursively(List<String> stmtList, IContainer container){
 		
 		List<String> parsedStmtList = stmtList;
@@ -229,6 +264,6 @@ public class VBSParser {
 		return parsedStmtList;
 		
 	}
-
+	
 
 }
